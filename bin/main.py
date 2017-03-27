@@ -4,4 +4,4 @@
 from analyzer import analyzer
 
 analyzer = analyzer.Analyzer()
-analyzer.analyze_train_set()
+analyzer.analyze_test_set()

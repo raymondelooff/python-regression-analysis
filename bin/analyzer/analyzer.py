@@ -18,7 +18,7 @@ class Analyzer:
         self.today = pd.to_datetime('today')
 
     def analyze_train_set(self):
-        self.analyze(self.train_motocycles)
+        self.analyze(self.train_motocycles, True)
 
     def analyze_test_set(self):
         test_motocycles = test_set_reader.TestSetReader().read()
@@ -33,7 +33,7 @@ class Analyzer:
 
         return motocycle
 
-    def analyze(self, df):
+    def analyze(self, df, calculate_rmse=False):
         reg = ensemble.GradientBoostingRegressor(max_depth=16)
 
         target = 'Bruto BPM'
@@ -48,9 +48,12 @@ class Analyzer:
 
         # Fill empty values
         train_means = self.train_motocycles.mean()
-        self.train_motocycles.fillna(train_means, inplace=True)
-        df.fillna(train_means, inplace=True)
 
+        self.train_motocycles.fillna(train_means, inplace=True)
+        train_min_date = pd.to_datetime(self.train_motocycles['Datum eerste toelating']).min()
+        self.train_motocycles['Datum eerste toelating'].fillna(train_min_date, inplace=True)
+
+        df.fillna(train_means, inplace=True)
         min_date = pd.to_datetime(df['Datum eerste toelating']).min()
         df['Datum eerste toelating'].fillna(min_date, inplace=True)
 
@@ -78,7 +81,8 @@ class Analyzer:
 
         results = regr.predict(xvalues_test)
 
-        print('Mean Squared Error: \n', sqrt(mean_squared_error(yvalues_train, results)))
+        if calculate_rmse:
+            print('Mean Squared Error: \n', sqrt(mean_squared_error(yvalues_train, results)))
 
         with open('output/results.csv', 'w') as output_file:
             w = csv.writer(output_file)
