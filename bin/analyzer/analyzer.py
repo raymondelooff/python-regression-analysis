@@ -26,21 +26,21 @@ class Analyzer:
 
     def calculate_days(self, motocycle):
         date_admission = pd.to_datetime(motocycle['Datum eerste toelating'])
-        # date_ascription = pd.to_datetime(motocycle['Datum tenaamstelling'])
+        date_ascription = pd.to_datetime(motocycle['Datum tenaamstelling'])
 
         motocycle['Dagen sinds eerste toelating'] = self.today - date_admission
-        # motocycle['Dagen sinds tenaamstelling'] = self.today - date_ascription
+        motocycle['Dagen sinds tenaamstelling'] = self.today - date_ascription
 
         return motocycle
 
     def analyze(self, df, calculate_rmse=False):
         reg = ensemble.GradientBoostingRegressor(max_depth=16)
 
-        target = 'Bruto BPM'
+        target = 'WAM verzekerd'
         features = {
             'Catalogusprijs',
-            'Cilinderinhoud',
-            'Dagen sinds eerste toelating'
+            'Dagen sinds eerste toelating',
+            'Dagen sinds tenaamstelling'
         }
 
         # Fill empty values
