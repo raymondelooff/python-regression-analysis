@@ -39,9 +39,6 @@ class Analyzer:
         target = 'Bruto BPM'
         features = {
             'Catalogusprijs',
-            'Massa ledig voertuig',
-            'Wielbasis',
-            'Aantal cilinders',
             'Cilinderinhoud',
             'Dagen sinds eerste toelating'
         }
