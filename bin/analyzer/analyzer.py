@@ -34,13 +34,18 @@ class Analyzer:
         return motocycle
 
     def analyze(self, df, calculate_rmse=False):
-        reg = ensemble.GradientBoostingRegressor(max_depth=16)
+        # reg = ensemble.GradientBoostingRegressor(max_depth=16)
+        reg = ensemble.RandomForestRegressor(max_depth=16)
 
         target = 'Bruto BPM'
         features = {
             'Catalogusprijs',
-            'Cilinderinhoud',
-            'Dagen sinds eerste toelating'
+            'Massa ledig voertuig',
+            'Wielbasis',
+            'Aantal cilinders',
+            'Cilinderinhoud'
+            # 'Dagen sinds eerste toelating'
+            # 'Dagen sinds tenaamstelling'
         }
 
         # Fill empty values
