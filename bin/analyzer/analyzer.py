@@ -5,24 +5,22 @@ import copy
 from reader import train_set_reader, test_set_reader
 from sklearn import linear_model, ensemble
 from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction import DictVectorizer
 import numpy as np
 import pandas as pd
 import csv
 from math import sqrt
 
+
 class Analyzer:
     def __init__(self):
         ""
         self.train_set_reader = train_set_reader.TrainSetReader()
+        self.test_set_reader = test_set_reader.TestSetReader()
         self.train_motocycles = self.train_set_reader.read()
+        self.test_motocycles = self.test_set_reader.read()
         self.today = pd.to_datetime('today')
-
-    def analyze_train_set(self):
-        self.analyze(self.train_motocycles, True)
-
-    def analyze_test_set(self):
-        test_motocycles = test_set_reader.TestSetReader().read()
-        self.analyze(test_motocycles)
 
     def calculate_days(self, motocycle):
         date_admission = pd.to_datetime(motocycle['Datum eerste toelating'])
@@ -33,62 +31,64 @@ class Analyzer:
 
         return motocycle
 
-    def analyze(self, df, calculate_rmse=False):
-        # reg = ensemble.GradientBoostingRegressor(max_depth=16)
-        reg = ensemble.RandomForestRegressor(max_depth=16)
+    def analyze(self, calculate_rmse=False):
+        # base = ensemble.GradientBoostingRegressor()
+        base = ensemble.RandomForestRegressor()
+        # base = linear_model.LinearRegression()
 
-        target = 'Bruto BPM'
-        features = {
+        reg = ensemble.AdaBoostRegressor(base, loss='square')
+
+        # Train
+        self.train_motocycles.dropna(inplace=True)
+        df_train = self.train_motocycles[[
+            'Merk',
+            'Catalogusprijs',
+            'Massa ledig voertuig',
+            'Wielbasis',
+            'Aantal cilinders',
+            'Cilinderinhoud',
+            'Bruto BPM'
+        ]].reindex()
+
+        print(df_train.info())
+
+        df_test = self.test_motocycles[[
+            'Kenteken',
+            'Merk',
             'Catalogusprijs',
             'Massa ledig voertuig',
             'Wielbasis',
             'Aantal cilinders',
             'Cilinderinhoud'
-            # 'Dagen sinds eerste toelating'
-            # 'Dagen sinds tenaamstelling'
-        }
+        ]].reindex()
+        df_test.fillna(df_test.mean(), inplace=True)
 
-        # Fill empty values
-        train_means = self.train_motocycles.mean()
+        # Prepare
+        vec = DictVectorizer()
+        vec.fit(df_train.to_dict(orient='records'))
+        vec.fit(df_test.to_dict(orient='records'))
 
-        self.train_motocycles.fillna(train_means, inplace=True)
-        train_min_date = pd.to_datetime(self.train_motocycles['Datum eerste toelating']).min()
-        self.train_motocycles['Datum eerste toelating'].fillna(train_min_date, inplace=True)
+        y_train = df_train.pop('Bruto BPM')
+        X_train = vec.transform(df_train.to_dict(orient='records'))
 
-        df.fillna(train_means, inplace=True)
-        min_date = pd.to_datetime(df['Datum eerste toelating']).min()
-        df['Datum eerste toelating'].fillna(min_date, inplace=True)
+        number_plates = df_test.pop('Kenteken')
+        X_test = vec.transform(df_test.to_dict(orient='records'))
 
-        print(df.info())
+        # X_train, X_test, y_train, y_test = train_test_split(X, y)
 
-        # Train
-        xvalues_train = list()
-        yvalues_train = list()
+        # Fit model
+        reg.fit(X_train, y_train)
 
-        for index, motocycle in self.train_motocycles.iterrows():
-            motocycle = self.calculate_days(motocycle)
+        y_predict = reg.predict(X_test)
 
-            xvalues_train.append(list(motocycle[v] for v in features))
-            yvalues_train.append(motocycle[target])
-
-        regr = reg.fit(xvalues_train, yvalues_train)
-
-        # Test
-        xvalues_test = list()
-
-        for index, motocycle in df.iterrows():
-            motocycle = self.calculate_days(motocycle)
-
-            xvalues_test.append(list(motocycle[v] for v in features))
-
-        results = regr.predict(xvalues_test)
-
-        if calculate_rmse:
-            print('Mean Squared Error: \n', sqrt(mean_squared_error(yvalues_train, results)))
+        # if calculate_rmse:
+        #     print('Root Mean Squared Error: \n', sqrt(mean_squared_error(y_test, y_predict)))
 
         with open('output/results.csv', 'w') as output_file:
+            rows = zip(number_plates, y_predict)
+
             w = csv.writer(output_file)
             w.writerow(['Kenteken', 'Prediction'])
 
-            for index, motocycle in df.iterrows():
-                w.writerow([motocycle['Kenteken'], results[index]])
+            for row in rows:
+                w.writerow([row[0], row[1]])
